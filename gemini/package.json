@@ -1,0 +1,11 @@
+{
+  "name": "gemini-query",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Minimal CLI to query Google Gemini from Claude Code skills",
+  "main": "gemini-query.js",
+  "dependencies": {
+    "@google/genai": "^1.42.0"
+  }
+}
