@@ -2,7 +2,7 @@
 name: gemini
 description: Query Google Gemini for code review, alternative perspectives, analysis, or a second AI opinion. Only invoked manually via /gemini.
 disable-model-invocation: true
-allowed-tools: Bash, Read, Glob, Grep
+allowed-tools: Bash, Read, Glob, Grep, Write
 argument-hint: [your query, a file to review, or a question for Gemini]
 ---
 
@@ -24,7 +24,7 @@ If the user specifies a different model (e.g., "use flash" or "use 2.5 pro"), pa
 Before calling Gemini, gather relevant context:
 
 1. If the user references specific files in $ARGUMENTS, read them using the Read tool
-2. Combine file contents into a context string to pass via `--context`
+2. Determine total file size to choose the right method (see Execute Query below)
 3. For large codebases, focus on the files most relevant to the query
 
 ## Execute Query
@@ -34,9 +34,36 @@ Before calling Gemini, gather relevant context:
 node ~/.claude/tools/gemini-query.js "THE USER'S QUERY"
 ```
 
-### Query with file context:
+### Query with small context (under ~100KB combined):
 ```bash
 node ~/.claude/tools/gemini-query.js --context "FILE CONTENTS HERE" "THE USER'S QUERY"
+```
+
+### Query with file context (PREFERRED for any files — avoids shell arg limits):
+Write context to a temp file, then use `--context-file`:
+```bash
+cat file1.ts file2.ts > /tmp/gemini-context.txt
+node ~/.claude/tools/gemini-query.js --context-file /tmp/gemini-context.txt "THE USER'S QUERY"
+```
+
+For multiple files with labels, build the context file with separators:
+```bash
+echo "--- file1.ts ---" > /tmp/gemini-context.txt
+cat file1.ts >> /tmp/gemini-context.txt
+echo -e "\n--- file2.ts ---" >> /tmp/gemini-context.txt
+cat file2.ts >> /tmp/gemini-context.txt
+node ~/.claude/tools/gemini-query.js --context-file /tmp/gemini-context.txt "Review these files for bugs"
+```
+
+### Stdin as context (alternative):
+When a prompt is provided as a CLI arg, piped stdin becomes context:
+```bash
+cat file1.ts file2.ts | node ~/.claude/tools/gemini-query.js "Review these files for bugs"
+```
+
+### Large prompt from file:
+```bash
+node ~/.claude/tools/gemini-query.js --prompt-file /tmp/gemini-prompt.txt --context-file /tmp/gemini-context.txt
 ```
 
 ### Query with model override:
@@ -44,10 +71,9 @@ node ~/.claude/tools/gemini-query.js --context "FILE CONTENTS HERE" "THE USER'S 
 node ~/.claude/tools/gemini-query.js --model gemini-2.5-flash "THE USER'S QUERY"
 ```
 
-### For large context (use stdin):
-```bash
-cat file1.ts file2.ts | node ~/.claude/tools/gemini-query.js "Review these files for bugs"
-```
+## IMPORTANT: Always use --context-file for file content
+
+Do NOT pass file contents as a `--context` CLI argument string. Shell argument length limits (~256KB on macOS) cause silent truncation for large files. Always write context to a temp file first and use `--context-file`.
 
 ## Present Results
 
