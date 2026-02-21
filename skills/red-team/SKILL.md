@@ -178,6 +178,69 @@ Adapt the comparison structure to the detected intent:
 
 Keep it concise -- substantive differences only, not stylistic ones.
 
+## Step 5: Write Report Artifact
+
+After presenting the comparison, write the complete red-team report to a file in the current working directory using the Write tool. Do NOT delegate this to a subagent -- you (the main session) have all the responses in context.
+
+**File path:** `red-team-report.md` in the current working directory (this overwrites any previous report).
+
+**Report structure:**
+
+```
+# Red Team Report
+
+| Field | Value |
+|-------|-------|
+| **Date** | [current date and time, YYYY-MM-DD HH:MM format] |
+| **Intent** | [detected intent: review / debate / troubleshoot / general] |
+| **Models** | Gemini (gemini-3.1-pro-preview, thinking: high), Codex (gpt-5.2-codex, reasoning: high) |
+| **Files Reviewed** | [comma-separated list from prep agent summary, or "N/A" if none] |
+| **Query** | [the user's original query from $ARGUMENTS] |
+
+---
+
+## Gemini Response
+
+[Complete Gemini response -- copy the full text returned by the Gemini agent]
+
+---
+
+## Codex Response
+
+[Complete Codex response -- copy the full text returned by the Codex agent]
+
+---
+
+## Claude Comparison
+
+[Complete comparison/synthesis you wrote in Step 4]
+
+---
+
+[If review or troubleshoot intent, include the following section:]
+
+## Action Items
+
+Summarize all concrete findings from both model responses and your comparison into a checklist, organized by severity. Deduplicate -- if both models flagged the same issue, list it once but note "(both models)". If only one model flagged it, note which one.
+
+- [ ] **[Critical]** description (source: Gemini / Codex / both)
+- [ ] **[Major]** description (source: Gemini / Codex / both)
+- [ ] **[Minor]** description (source: Gemini / Codex / both)
+- [ ] **[Nit]** description (source: Gemini / Codex / both)
+
+Omit any severity level that has no items. If no actionable findings exist, write "No action items identified."
+```
+
+After writing the file, tell the user:
+
+```
+Report written to: [absolute path to red-team-report.md]
+```
+
+If either model agent failed or timed out, still write the report with whatever is available. Note any missing sections with "[Model unavailable -- agent failed or timed out]".
+
+For **debate** and **general** intents, omit the Action Items section entirely.
+
 ## User Query
 
 $ARGUMENTS
