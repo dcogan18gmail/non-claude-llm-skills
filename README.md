@@ -60,7 +60,7 @@ cp gemini/gemini-query.js ~/.claude/tools/gemini-query.js
 
 `/red-team` auto-detects intent (review, debate, troubleshoot, general) and adjusts context gathering, prompt framing, and comparison structure accordingly. All file reading and model calls run in subagents to preserve the main session's context window.
 
-Reports are saved to `red-team-reports/` in the current directory with unique filenames: `{project}-{intent}-{YYYYMMDD}-{HHMM}.md`.
+Reports are saved to `red-team-reports/` in the current directory with unique filenames: `{project}-{intent}-{topic}-{YYYYMMDD}-{HHMM}.md` (e.g., `honeymoon-ai-review-phase-3-plan-20260222-1430.md`).
 
 ## Models
 

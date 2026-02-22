@@ -52,7 +52,8 @@ Launch a single `general-purpose` subagent (model: `opus`) that:
    [file contents]
    ```
 4. Writes the final framed prompt (adjusted for detected intent) to `/tmp/red-team-prompt.txt`.
-5. Returns a SHORT summary (under 200 words) of: what files were gathered, what intent was detected, and the prompt that was written. Do NOT return file contents.
+5. Writes a 2-4 word kebab-case topic slug to `/tmp/red-team-topic.txt`. Derive it from the core subject of the user's query (e.g., "review phase 3 plan" -> `phase-3-plan`, "review code for phase 2 build" -> `phase-2-code`, "debate REST vs GraphQL" -> `rest-vs-graphql`, "debug auth flow" -> `auth-flow`). Just the slug, no newline.
+6. Returns a SHORT summary (under 200 words) of: what files were gathered, what intent was detected, the topic slug, and the prompt that was written. Do NOT return file contents.
 
 **Prep agent prompt template:**
 ```
@@ -72,7 +73,8 @@ Your tasks:
    - [If debate] Ask the model to take a clear position and defend it with concrete reasoning
    - [If troubleshoot] Frame as a diagnostic asking for root causes and recommended fixes
    - [If general] Use the query as-is
-5. Return a summary (under 200 words) of what you gathered and the prompt you wrote. Do NOT return file contents.
+5. Write a 2-4 word kebab-case topic slug to /tmp/red-team-topic.txt. Derive it from the core subject of the user's query (e.g., "review phase 3 plan" -> "phase-3-plan", "review code for phase 2 build" -> "phase-2-code", "debate REST vs GraphQL" -> "rest-vs-graphql"). Just the raw slug, no newline, no quotes.
+6. Return a summary (under 200 words) of what you gathered, the topic slug, and the prompt you wrote. Do NOT return file contents.
 ```
 
 Wait for the prep agent to complete before proceeding to Step 2.
@@ -185,7 +187,7 @@ After presenting the comparison, write the complete red-team report to a uniquel
 **Determine the file name** by running this Bash command:
 
 ```bash
-PROJECT=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD")" | tr '[:upper:]' '[:lower:]' | tr ' _' '-' | sed 's/[^a-z0-9-]//g') && echo "${PROJECT}-INTENT-$(date +%Y%m%d-%H%M)"
+PROJECT=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD")" | tr '[:upper:]' '[:lower:]' | tr ' _' '-' | sed 's/[^a-z0-9-]//g') && TOPIC=$(cat /tmp/red-team-topic.txt 2>/dev/null || echo "general") && echo "${PROJECT}-INTENT-${TOPIC}-$(date +%Y%m%d-%H%M)"
 ```
 
 In the echoed output, replace `INTENT` with the detected intent from the Intent Detection phase (`review`, `debate`, `troubleshoot`, or `general`). The result is the filename (without `.md`).
@@ -196,8 +198,9 @@ In the echoed output, replace `INTENT` with the detected intent from the Intent 
 2. Write tool: write to `red-team-reports/{filename}.md`
 
 **File name examples:**
-- `red-team-reports/my-api-project-review-20260222-1430.md`
-- `red-team-reports/my-app-debate-20260222-0915.md`
+- `red-team-reports/my-api-project-review-phase-3-plan-20260222-1430.md`
+- `red-team-reports/my-app-debate-rest-vs-graphql-20260222-0915.md`
+- `red-team-reports/my-app-review-auth-refactor-20260222-1100.md`
 
 **Report structure:**
 
