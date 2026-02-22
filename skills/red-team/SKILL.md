@@ -180,9 +180,24 @@ Keep it concise -- substantive differences only, not stylistic ones.
 
 ## Step 5: Write Report Artifact
 
-After presenting the comparison, write the complete red-team report to a file in the current working directory using the Write tool. Do NOT delegate this to a subagent -- you (the main session) have all the responses in context.
+After presenting the comparison, write the complete red-team report to a uniquely named file in a `red-team-reports/` subdirectory. Do NOT delegate this to a subagent -- you (the main session) have all the responses in context.
 
-**File path:** `red-team-report.md` in the current working directory (this overwrites any previous report).
+**Determine the file name** by running this Bash command:
+
+```bash
+PROJECT=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD")" | tr '[:upper:]' '[:lower:]' | tr ' _' '-' | sed 's/[^a-z0-9-]//g') && echo "${PROJECT}-INTENT-$(date +%Y%m%d-%H%M)"
+```
+
+In the echoed output, replace `INTENT` with the detected intent from the Intent Detection phase (`review`, `debate`, `troubleshoot`, or `general`). The result is the filename (without `.md`).
+
+**Create the directory and write the file:**
+
+1. Bash: `mkdir -p red-team-reports`
+2. Write tool: write to `red-team-reports/{filename}.md`
+
+**File name examples:**
+- `red-team-reports/my-api-project-review-20260222-1430.md`
+- `red-team-reports/my-app-debate-20260222-0915.md`
 
 **Report structure:**
 
@@ -234,7 +249,7 @@ Omit any severity level that has no items. If no actionable findings exist, writ
 After writing the file, tell the user:
 
 ```
-Report written to: [absolute path to red-team-report.md]
+Report written to: [absolute path to red-team-reports/{filename}.md]
 ```
 
 If either model agent failed or timed out, still write the report with whatever is available. Note any missing sections with "[Model unavailable -- agent failed or timed out]".
