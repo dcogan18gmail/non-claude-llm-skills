@@ -115,16 +115,16 @@ You are calling OpenAI Codex and returning its response.
 
 Do NOT use any MCP tools. Use only Bash and Read.
 
-Model: gpt-5.2-codex (reasoning: high)
+Model: gpt-5.4 (reasoning: high)
 Tool: codex CLI
 
 Steps:
 1. Read /tmp/red-team-prompt.txt to get the prompt.
 2. [If review intent with diffs] Run:
-   Bash (timeout 420000): codex review --uncommitted -c model_reasoning_effort="high" "$(cat /tmp/red-team-prompt.txt)"
+   Bash (timeout 420000): codex review --uncommitted -m gpt-5.4 -c model_reasoning_effort="high" "$(cat /tmp/red-team-prompt.txt)"
    Then return the terminal output.
    [Otherwise] Run:
-   Bash (timeout 420000): codex exec --skip-git-repo-check -m gpt-5.2-codex -c model_reasoning_effort="high" -s read-only -o /tmp/codex-response.md "$(cat /tmp/red-team-prompt.txt)"
+   Bash (timeout 420000): codex exec --skip-git-repo-check -m gpt-5.4 -c model_reasoning_effort="high" -s read-only -o /tmp/codex-response.md "$(cat /tmp/red-team-prompt.txt)"
    Then read /tmp/codex-response.md.
    [If context file exists, add]: The context files are at /tmp/red-team-context.txt. Include them in the prompt or use -C as needed.
 
@@ -132,7 +132,7 @@ Steps:
 
 IMPORTANT:
 - Always use -o /tmp/codex-response.md for codex exec and read the file afterward.
-- Fallback model if gpt-5.2-codex errors: gpt-5.2
+- Fallback model if gpt-5.4 errors: gpt-5.2-codex
 - Timeout is 420000ms (7 minutes). If Bash times out, use TaskOutput with block: true and timeout: 300000 to wait.
 ```
 
@@ -149,7 +149,7 @@ Once both model agents return, present their responses in the main session:
 
 ---
 
-**Codex Response** (model: gpt-5.2-codex, reasoning: high)
+**Codex Response** (model: gpt-5.4, reasoning: high)
 
 [Complete Codex response from the agent's return value]
 
@@ -211,7 +211,7 @@ In the echoed output, replace `INTENT` with the detected intent from the Intent 
 |-------|-------|
 | **Date** | [current date and time, YYYY-MM-DD HH:MM format] |
 | **Intent** | [detected intent: review / debate / troubleshoot / general] |
-| **Models** | Gemini (gemini-3.1-pro-preview, thinking: high), Codex (gpt-5.2-codex, reasoning: high) |
+| **Models** | Gemini (gemini-3.1-pro-preview, thinking: high), Codex (gpt-5.4, reasoning: high) |
 | **Files Reviewed** | [comma-separated list from prep agent summary, or "N/A" if none] |
 | **Query** | [the user's original query from $ARGUMENTS] |
 

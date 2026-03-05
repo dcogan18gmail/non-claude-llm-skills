@@ -13,10 +13,10 @@ You are routing a user query to OpenAI's Codex via the Codex CLI. Do NOT use any
 ## Model Configuration
 
 Use this model with high reasoning effort on every call:
-- **Model**: `gpt-5.2-codex` (latest and most capable)
+- **Model**: `gpt-5.4` (latest and most capable)
 - **Reasoning**: `-c model_reasoning_effort="high"`
 
-If the model is unavailable or returns an error, fall back to `gpt-5.2` (general-purpose, also supports high reasoning).
+If the model is unavailable or returns an error, fall back to `gpt-5.2-codex` (also supports high reasoning).
 
 ## Determine Query Type
 
@@ -40,7 +40,7 @@ codex review --commit SHA -c model_reasoning_effort="high" "INSTRUCTIONS"
 For everything else, use `codex exec`:
 
 ```bash
-codex exec --skip-git-repo-check -m gpt-5.2-codex -c model_reasoning_effort="high" -C "WORKING_DIR" -s read-only -o /tmp/codex-response.md "PROMPT"
+codex exec --skip-git-repo-check -m gpt-5.4 -c model_reasoning_effort="high" -C "WORKING_DIR" -s read-only -o /tmp/codex-response.md "PROMPT"
 ```
 
 Use `-s workspace-write` only if the user explicitly asks Codex to make file modifications.
@@ -52,7 +52,7 @@ Before calling Codex, determine how to pass context:
 1. **Small files (<50KB)**: You may read them and include contents in the prompt string.
 2. **Large files (>50KB) or many files**: Do NOT read and inline file contents. Instead, use `-C` to set the working directory and instruct Codex to read the files itself. Example:
    ```bash
-   codex exec --skip-git-repo-check -m gpt-5.2-codex -c model_reasoning_effort="high" -C "/path/to/project" -s read-only -o /tmp/codex-response.md "Read prd.json and README.md in this directory and review them for completeness."
+   codex exec --skip-git-repo-check -m gpt-5.4 -c model_reasoning_effort="high" -C "/path/to/project" -s read-only -o /tmp/codex-response.md "Read prd.json and README.md in this directory and review them for completeness."
    ```
 3. For code review, determine if the user wants to review uncommitted changes, a branch diff, or a specific commit.
 
@@ -82,7 +82,7 @@ cat /tmp/codex-response.md
 Format the response clearly:
 
 ```
-**Codex Response** (model: gpt-5.2-codex, reasoning: high)
+**Codex Response** (model: gpt-5.4, reasoning: high)
 
 [response content from /tmp/codex-response.md]
 ```
