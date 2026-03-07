@@ -1,11 +1,13 @@
-# Plan: Add DeepSeek Skill + 3-Model Red Team
+# Plan: Add DeepSeek Skill + 4-Model Red Team
 
 ## Context
 
 The project has `/gemini` and `/codex` standalone skills, plus `/red-team` which orchestrates both in parallel. We're adding:
 1. A standalone `/deepseek` skill (same pattern as `/gemini` and `/codex`)
 2. A `deepseek-query.js` CLI wrapper (mirrors `gemini-query.js`)
-3. Expanding `/red-team` to 3 models by default, with natural-language model selection for 2-model subsets
+3. Expanding `/red-team` to 4 models by default (Gemini, Codex, DeepSeek, and Claude Opus), with natural-language model selection for 2- or 3-model subsets
+
+**Claude Opus note**: Since Opus is the model orchestrating the red-team skill, the "Opus agent" is simply a subagent that reads the prompt/context and answers directly — no external CLI tool or API key needed.
 
 **Key constraint**: Model config must be easy to swap in a single place (the `DEFAULT_MODEL` constant in `deepseek-query.js` and the model name in `skills/deepseek/SKILL.md`), since a newer DeepSeek model may be available by the time this ships.
 
@@ -255,15 +257,15 @@ Replace frontmatter description and title:
 ```yaml
 ---
 name: red-team
-description: Send the same query to Google Gemini, OpenAI Codex, and DeepSeek in parallel via subagents, then compare their responses. Only invoked manually via /red-team.
+description: Send the same query to Google Gemini, OpenAI Codex, DeepSeek, and Claude Opus in parallel via subagents, then compare their responses. Only invoked manually via /red-team.
 disable-model-invocation: true
 allowed-tools: Bash, Read, Glob, Grep, Write, Task
 argument-hint: [your query, a file to review, or a question for all models]
 ---
 
-# Red Team: Parallel Gemini + Codex + DeepSeek Query
+# Red Team: Parallel Gemini + Codex + DeepSeek + Opus Query
 
-You are orchestrating a red-team query across Google Gemini, OpenAI Codex, and DeepSeek. Your job is lightweight coordination -- **all heavy lifting happens in subagents** to preserve the main session's context window.
+You are orchestrating a red-team query across Google Gemini, OpenAI Codex, DeepSeek, and Claude Opus. Your job is lightweight coordination -- **all heavy lifting happens in subagents** to preserve the main session's context window.
 
 Do NOT use any MCP tools. Do NOT read file contents or run model queries directly in the main session.
 ```
@@ -273,26 +275,29 @@ Do NOT use any MCP tools. Do NOT read file contents or run model queries directl
 ```markdown
 ## Model Selection
 
-By default, all three models run: Gemini, Codex, and DeepSeek. The user can narrow to any 2 by naming them in $ARGUMENTS.
+By default, all four models run: Gemini, Codex, DeepSeek, and Opus. The user can narrow to any 2 or 3 by naming them in $ARGUMENTS.
 
 **Parse model selection from $ARGUMENTS** before launching the prep agent:
 
 ### Detection rules
 1. If the user mentions specific model names in a selection pattern, use ONLY those models
-2. Selection patterns: "with X and Y", "using X and Y", "just X and Y", "only X and Y", "X+Y", "X and Y only"
-3. If no model names are mentioned in a selection pattern, use ALL THREE
+2. Selection patterns: "with X and Y", "using X and Y", "just X and Y", "only X and Y", "X+Y", "X and Y only", "X, Y, and Z"
+3. If no model names are mentioned in a selection pattern, use ALL FOUR
 4. Incidental mentions don't count (e.g., "review Google auth" doesn't select Gemini)
 
 ### Model name aliases
 - **Gemini**: "gemini", "google" (only in selection patterns)
 - **Codex**: "codex", "openai", "gpt"
 - **DeepSeek**: "deepseek", "r1"
+- **Opus**: "opus", "claude"
 
 ### Examples
-- "review auth.ts" → all three (no selection pattern)
+- "review auth.ts" → all four (no selection pattern)
 - "review auth.ts with gemini and deepseek" → Gemini + DeepSeek
 - "just codex and deepseek for this review" → Codex + DeepSeek
 - "gemini+codex review the middleware" → Gemini + Codex
+- "use gemini, codex, and opus" → Gemini + Codex + Opus (3 of 4)
+- "review auth.ts with opus and deepseek" → Opus + DeepSeek
 
 ### Minimum
 At least 2 models required. If user names only 1, direct them to the standalone skill (e.g., "Use /deepseek directly for single-model queries") and stop.
@@ -304,18 +309,18 @@ Strip model selection phrases from the query before passing to the prep agent.
 
 Add to the prep agent prompt template (after "Working directory"):
 ```
-Selected models: [list of selected models, e.g., "Gemini, Codex, DeepSeek"]
+Selected models: [list of selected models, e.g., "Gemini, Codex, DeepSeek, Opus"]
 ```
 
 No other changes to prep agent behavior.
 
-**d) Step 2: Model Agents — expand from 2 to 3**
+**d) Step 2: Model Agents — expand from 2 to 4**
 
 Replace the Step 2 intro:
 ```markdown
 ## Step 2: Model Agents (parallel)
 
-Launch subagents for each selected model **in the same message** so they run concurrently. With the default (all three), launch three `general-purpose` subagents (model: `opus`). If only two models were selected, launch two.
+Launch subagents for each selected model **in the same message** so they run concurrently. With the default (all four), launch four `general-purpose` subagents (model: `opus`). If fewer models were selected, launch only those.
 ```
 
 Keep existing Gemini Agent and Codex Agent sections unchanged. Add new DeepSeek Agent section:
@@ -347,6 +352,31 @@ IMPORTANT:
 - If the user specified a model override, pass it via --model.
 - Timeout is 420000ms (7 minutes). If Bash times out, use TaskOutput with block: true and timeout: 300000 to wait.
 ```
+```
+
+### Opus Agent
+
+```
+You are providing Claude Opus's independent response to a red-team query. You are acting as one of several AI models being compared.
+
+Do NOT use any MCP tools. Use only Read.
+
+Model: Claude Opus (you — answer directly)
+
+Steps:
+1. Read /tmp/red-team-prompt.txt to get the prompt.
+2. [If context exists] Read /tmp/red-team-context.txt to get the context.
+3. Answer the prompt directly and thoroughly. You ARE the model — just respond to the query.
+   - [If review] Provide a thorough code review: bugs, security issues, performance, readability, edge cases.
+   - [If debate] Take a clear position and defend it with concrete reasoning.
+   - [If troubleshoot] Diagnose likely root causes and recommend fixes.
+   - [If general] Answer the query comprehensively.
+4. Return your COMPLETE response. Prefix with: "OPUS RESPONSE:"
+
+IMPORTANT:
+- Do NOT call any external tools or scripts. You are the model.
+- Do NOT hold back — give your full, honest analysis. You'll be compared against other models.
+- Do NOT try to be balanced or hedge. Take clear positions.
 ```
 
 **e) Step 3: Present Results — conditional sections**
@@ -381,6 +411,13 @@ Once all model agents return, present their responses in the main session. Only 
 [Complete DeepSeek response — final answer section. Optionally include a brief summary of key reasoning insights if the <reasoning> content adds value, but do not dump the raw chain-of-thought.]
 
 ---
+
+[If Opus was selected:]
+**Opus Response** (model: claude-opus-4-6)
+
+[Complete Opus response from the agent's return value]
+
+---
 ```
 
 If any agent failed or timed out, note it and present whatever is available.
@@ -395,6 +432,8 @@ Update the comparison section:
 
 Add your own synthesis. You (Claude) are the tiebreaker and synthesizer. You have NOT seen the raw file contents -- you are comparing the model responses on their own merits.
 
+**Note on Opus dual role**: When Opus is a selected model, the main session (also Opus) is both participant and judge. The Opus subagent's response was generated independently without seeing other models' responses, so it's a fair comparison. Acknowledge this dual role transparently in the comparison if relevant.
+
 ```
 **Comparison** (Claude synthesis)
 
@@ -406,7 +445,7 @@ Add your own synthesis. You (Claude) are the tiebreaker and synthesizer. You hav
 ```
 
 Adapt the comparison structure to the detected intent:
-- **Review**: organize by severity, flag findings unique to one model. With 3 models, note "2-of-3 agreement" vs "sole finding" patterns.
+- **Review**: organize by severity, flag findings unique to one model. With multiple models, note agreement patterns (e.g., "3-of-4 agreement", "2-of-3 agreement") vs "sole finding".
 - **Debate**: steelman all positions, give a reasoned recommendation
 - **Troubleshoot**: assess root cause agreement, note convergence (3/3, 2/3, all different), recommend which diagnosis to pursue
 - **General**: standard format
@@ -418,7 +457,7 @@ Keep it concise -- substantive differences only, not stylistic ones.
 
 Update the metadata table Models row to be dynamic:
 ```markdown
-| **Models** | [List each selected model with its config, e.g., "Gemini (gemini-3.1-pro-preview, thinking: high), Codex (gpt-5.2-codex, reasoning: high), DeepSeek (deepseek-reasoner)"] |
+| **Models** | [List each selected model with its config, e.g., "Gemini (gemini-3.1-pro-preview, thinking: high), Codex (gpt-5.4, reasoning: high), DeepSeek (deepseek-reasoner), Opus (claude-opus-4-6)"] |
 ```
 
 Update the report body to include conditional response sections:
@@ -440,16 +479,21 @@ Update the report body to include conditional response sections:
 
 ---
 
+## Opus Response
+[Complete Opus response -- only if Opus was selected]
+
+---
+
 ## Claude Comparison
 [Complete comparison/synthesis from Step 4]
 ```
 
 Update Action Items source attribution:
 ```markdown
-- [ ] **[Critical]** description (source: Gemini / Codex / DeepSeek / all / 2-of-3)
-- [ ] **[Major]** description (source: Gemini / Codex / DeepSeek / all / 2-of-3)
-- [ ] **[Minor]** description (source: Gemini / Codex / DeepSeek / all / 2-of-3)
-- [ ] **[Nit]** description (source: Gemini / Codex / DeepSeek / all / 2-of-3)
+- [ ] **[Critical]** description (source: Gemini / Codex / DeepSeek / Opus / all / majority)
+- [ ] **[Major]** description (source: Gemini / Codex / DeepSeek / Opus / all / majority)
+- [ ] **[Minor]** description (source: Gemini / Codex / DeepSeek / Opus / all / majority)
+- [ ] **[Nit]** description (source: Gemini / Codex / DeepSeek / Opus / all / majority)
 ```
 
 ### 5. `README.md`
@@ -459,7 +503,7 @@ Update Action Items source attribution:
 /codex [query]    →  codex exec -m gpt-5.2-codex -c model_reasoning_effort="high" "query"
 /gemini [query]   →  node gemini-query.js "query"  (thinkingLevel: high)
 /deepseek [query] →  node deepseek-query.js "query"  (R1 reasoning)
-/red-team [query] →  all 3 models in parallel (or select 2) via subagents, then Claude compares
+/red-team [query] →  all 4 models in parallel (or select 2-3) via subagents, then Claude compares
 ```
 
 **Prerequisites** — add to API Keys section:
@@ -485,6 +529,7 @@ cp -r skills/deepseek ~/.claude/skills/deepseek
 /deepseek What are the tradeoffs of this caching strategy?
 /red-team Review auth.ts with gemini and deepseek
 /red-team Debate: REST or GraphQL? (just codex and deepseek)
+/red-team Review middleware with opus, gemini, and codex
 ```
 
 Update red-team description paragraph to mention model selection.
@@ -496,7 +541,9 @@ Update red-team description paragraph to mention model selection.
 | `/codex` | gpt-5.2-codex | high |
 | `/gemini` | gemini-3.1-pro-preview | thinkingLevel: high |
 | `/deepseek` | deepseek-reasoner | built-in (R1) |
-| `/red-team` | all 3 (or select 2) | high |
+| `/red-team` | all 4 (or select 2-3) | high |
+
+Note: Opus doesn't have a standalone skill — it's the orchestrating model. Use `/red-team` with model selection to include it (e.g., `/red-team review auth.ts with opus and gemini`).
 ```
 
 ### 6. `RESEARCH.md`
@@ -567,10 +614,12 @@ const response = await client.chat.completions.create({
 
 1. **CLI wrapper**: Test `deepseek-query.js` with no args (usage msg), `--prompt-file`, `--context-file`, `--model deepseek-chat`, stdin piping
 2. **Standalone `/deepseek`**: Simple query, query with file context
-3. **Red team 3-model default**: `/red-team Review the README` — all 3 responses + comparison + report
+3. **Red team 4-model default**: `/red-team Review the README` — all 4 responses + comparison + report
 4. **Red team 2-model selection**: `/red-team Review auth.ts with gemini and deepseek` — only those 2 run
-5. **Error handling**: Missing API key → DeepSeek fails gracefully, other models still complete
-6. **Report**: Verify metadata lists correct models, conditional sections match what ran
+5. **Red team 3-model selection**: `/red-team Review auth.ts with opus, gemini, and codex` — only those 3 run
+6. **Opus agent**: Verify Opus subagent reads prompt/context files and responds directly (no external CLI)
+7. **Error handling**: Missing API key → DeepSeek fails gracefully, other models still complete. Opus should never fail (no external dependency).
+8. **Report**: Verify metadata lists correct models, conditional sections match what ran
 
 ---
 
